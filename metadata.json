@@ -1,0 +1,9 @@
+{
+  "name": "Farmex",
+  "description": "Smart Farming. Smarter Future. A comprehensive agricultural decision-making and resource management platform.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
