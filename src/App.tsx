@@ -27,11 +27,13 @@ import {
   Bell,
   LogOut,
   Search,
-  Loader2
+  Loader2,
+  Trash2,
+  CalendarDays
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchWeather } from './services/weatherService';
-import { getCropRecommendation, detectDisease, chatWithAI, getMarketPrediction } from './services/geminiService';
+import { getCropRecommendation, detectDisease, chatWithAI, getMarketPrediction, getSmartSchedule } from './services/geminiService';
 import { SOIL_TYPES, SEASONS, WATER_AVAILABILITY } from './constants';
 import type { WeatherData, CropRecommendation, FarmingTask, RiskAlert, User as UserType, MarketSearchResult } from './types';
 import { translations, type Language } from './translations';
@@ -157,6 +159,63 @@ export default function App() {
       { type: 'Pest', level: 'High', message: 'Locust swarm reported in nearby region.', action: 'Apply preventive pesticide.' },
     ];
   });
+
+  // Calendar States
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isSmartPlanningModalOpen, setIsSmartPlanningModalOpen] = useState(false);
+  const [isSmartPlanningLoading, setIsSmartPlanningLoading] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', date: new Date().toISOString().split('T')[0], type: 'Irrigation' });
+  const [smartPlanningInput, setSmartPlanningInput] = useState({ 
+    farmingType: 'Traditional', 
+    month: new Date().toLocaleString('en-US', { month: 'long' }) 
+  });
+
+  const addTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.title.trim()) return;
+    const task: FarmingTask = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: newTask.title,
+      date: newTask.date,
+      type: newTask.type,
+      completed: false
+    };
+    setTasks([task, ...tasks]);
+    setNewTask({ title: '', date: new Date().toISOString().split('T')[0], type: 'Irrigation' });
+    setIsTaskModalOpen(false);
+  };
+
+  const deleteTask = (id: string) => {
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+
+  const generateSmartSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSmartPlanningLoading(true);
+    try {
+      const locationName = weather?.locationName || 'Nagpur';
+      const schedule = await getSmartSchedule(
+        locationName, 
+        weather, 
+        smartPlanningInput.farmingType, 
+        smartPlanningInput.month, 
+        language
+      );
+      const newTasks: FarmingTask[] = schedule.map((s: any) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        title: s.title,
+        date: s.date,
+        type: s.type,
+        completed: false
+      }));
+      setTasks([...newTasks, ...tasks]);
+      setIsSmartPlanningModalOpen(false);
+    } catch (err) {
+      console.error('Smart planning error:', err);
+    } finally {
+      setIsSmartPlanningLoading(false);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('farmex_tasks', JSON.stringify(tasks));
@@ -656,39 +715,200 @@ export default function App() {
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">{t.calendar.title}</h2>
-          <button className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors">
+          <button 
+            onClick={() => setIsTaskModalOpen(true)}
+            className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors"
+          >
             <Plus className="w-6 h-6" />
           </button>
         </div>
         
         <div className="space-y-3">
-          {tasks.map((task) => (
-            <div key={task.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-              <button 
-                onClick={() => toggleTask(task.id)}
-                className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                  task.completed ? 'bg-green-600 text-white' : 'bg-white border-2 border-gray-200 text-transparent'
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-              </button>
-              <div className="flex-1">
-                <h4 className={`font-bold text-sm ${task.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
-                <p className="text-xs text-gray-500 mt-0.5">{new Date(task.date).toLocaleDateString(language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'mr-IN', { month: 'short', day: 'numeric' })}</p>
-              </div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{task.type}</span>
+          {tasks.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No tasks scheduled yet.</p>
             </div>
-          ))}
+          ) : (
+            tasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((task) => (
+              <div key={task.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                <button 
+                  onClick={() => toggleTask(task.id)}
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                    task.completed ? 'bg-green-600 text-white' : 'bg-white border-2 border-gray-200 text-transparent'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                </button>
+                <div className="flex-1">
+                  <h4 className={`font-bold text-sm ${task.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">{new Date(task.date).toLocaleDateString(language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'mr-IN', { month: 'short', day: 'numeric' })}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{task.type}</span>
+                  <button 
+                    onClick={() => deleteTask(task.id)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
       <div className="bg-green-600 p-6 rounded-3xl text-white shadow-lg shadow-green-200">
         <h3 className="font-bold mb-2">{t.calendar.smartPlanning}</h3>
         <p className="text-sm text-green-50/80 mb-4">{t.calendar.smartPlanningDesc}</p>
-        <button className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold text-sm transition-colors">
+        <button 
+          onClick={() => setIsSmartPlanningModalOpen(true)}
+          className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+        >
+          <Zap className="w-4 h-4" />
           {t.calendar.updateSchedule}
         </button>
       </div>
+
+      {/* Smart Planning Input Modal */}
+      <AnimatePresence>
+        {isSmartPlanningModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSmartPlanningModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Smart Planning</h3>
+                <button onClick={() => setIsSmartPlanningModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={generateSmartSchedule} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 ml-1">Type of Farming</label>
+                  <select 
+                    value={smartPlanningInput.farmingType}
+                    onChange={e => setSmartPlanningInput({...smartPlanningInput, farmingType: e.target.value})}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all appearance-none bg-white"
+                  >
+                    <option value="Traditional">Traditional Farming</option>
+                    <option value="Organic">Organic Farming</option>
+                    <option value="Hydroponic">Hydroponic Farming</option>
+                    <option value="Subsistence">Subsistence Farming</option>
+                    <option value="Commercial">Commercial Farming</option>
+                    <option value="Intensive">Intensive Farming</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 ml-1">Current Month</label>
+                  <select 
+                    value={smartPlanningInput.month}
+                    onChange={e => setSmartPlanningInput({...smartPlanningInput, month: e.target.value})}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all appearance-none bg-white"
+                  >
+                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isSmartPlanningLoading}
+                  className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition-all mt-4 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSmartPlanningLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                  {isSmartPlanningLoading ? 'Generating...' : 'Generate Schedule'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Task Modal */}
+      <AnimatePresence>
+        {isTaskModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTaskModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Add New Task</h3>
+                <button onClick={() => setIsTaskModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={addTask} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 ml-1">Task Title</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newTask.title}
+                    onChange={e => setNewTask({...newTask, title: e.target.value})}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all"
+                    placeholder="e.g., Water the wheat field"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 ml-1">Date</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={newTask.date}
+                      onChange={e => setNewTask({...newTask, date: e.target.value})}
+                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 ml-1">Type</label>
+                    <select 
+                      value={newTask.type}
+                      onChange={e => setNewTask({...newTask, type: e.target.value})}
+                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all appearance-none bg-white"
+                    >
+                      <option value="Irrigation">Irrigation</option>
+                      <option value="Sowing">Sowing</option>
+                      <option value="Fertilizing">Fertilizing</option>
+                      <option value="Harvesting">Harvesting</option>
+                      <option value="Pest Control">Pest Control</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <button 
+                  type="submit" 
+                  className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition-all mt-4"
+                >
+                  Add Task
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 

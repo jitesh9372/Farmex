@@ -102,3 +102,39 @@ export const chatWithAI = async (message: string, history: any[], language: stri
   const response = await chat.sendMessage({ message });
   return response.text;
 };
+
+export const getSmartSchedule = async (location: string, weather: any, farmingType: string, month: string, language: string = 'en') => {
+  const prompt = `As an expert agricultural planner, generate a 7-day farming task schedule for a farmer in ${location}. 
+  Farming Type: ${farmingType}
+  Month: ${month}
+  Current weather is ${weather?.temp}°C, ${weather?.condition}.
+  Provide the schedule in ${language} language.
+  Return an array of tasks in JSON format with the following fields:
+  - title: string (task name in ${language})
+  - date: string (ISO date YYYY-MM-DD)
+  - type: string (Irrigation, Sowing, Fertilizing, Harvesting, Pest Control, etc. in ${language})
+  - reasoning: string (brief explanation in ${language})`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            date: { type: Type.STRING },
+            type: { type: Type.STRING },
+            reasoning: { type: Type.STRING },
+          },
+          required: ["title", "date", "type", "reasoning"],
+        },
+      },
+    },
+  });
+
+  return JSON.parse(response.text);
+};
