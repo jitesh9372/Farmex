@@ -4,6 +4,7 @@ export interface WeatherData {
   humidity: number;
   windSpeed: number;
   forecast: ForecastDay[];
+  locationName: string;
 }
 
 export interface ForecastDay {
@@ -39,4 +40,24 @@ export interface RiskAlert {
   level: 'Low' | 'Medium' | 'High';
   message: string;
   action: string;
+}
+
+export interface MarketSearchResult {
+  commodity: string;
+  market: string;
+  district: string;
+  state: string;
+  price: string;
+  minPrice: string;
+  maxPrice: string;
+  date: string;
+  unit: string;
+  trend?: string;
+  details?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
 }

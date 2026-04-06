@@ -7,13 +7,14 @@ export const getCropRecommendation = async (data: {
   soilType: string;
   season: string;
   water: string;
-}) => {
+}, language: string = 'en') => {
   const prompt = `As an expert agricultural scientist, recommend the best crops for a farmer in ${data.location} with ${data.soilType} soil during the ${data.season} season. Water availability is ${data.water}. 
+  Provide the recommendation in ${language} language.
   Provide the recommendation in JSON format with the following fields:
-  - crop: string (name of the crop)
-  - yield: string (expected yield per acre)
-  - risk: string (Low, Medium, or High)
-  - reasoning: string (brief explanation)`;
+  - crop: string (name of the crop in ${language})
+  - yield: string (expected yield per acre in ${language})
+  - risk: string (Low, Medium, or High - in ${language})
+  - reasoning: string (brief explanation in ${language})`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -36,8 +37,9 @@ export const getCropRecommendation = async (data: {
   return JSON.parse(response.text);
 };
 
-export const detectDisease = async (base64Image: string) => {
-  const prompt = "Analyze this crop image and identify any diseases. Provide the disease name, confidence level, and suggested treatment in JSON format.";
+export const detectDisease = async (base64Image: string, language: string = 'en') => {
+  const prompt = `Analyze this crop image and identify any diseases. Provide the disease name, confidence level, and suggested treatment in JSON format. 
+  All text descriptions must be in ${language} language.`;
   
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -64,8 +66,9 @@ export const detectDisease = async (base64Image: string) => {
   return JSON.parse(response.text);
 };
 
-export const getMarketPrediction = async (crop: string) => {
-  const prompt = `Predict the market price trend for ${crop} for the next 3 months. Provide current price estimate, predicted price, and trend (up/down/stable) in JSON format.`;
+export const getMarketPrediction = async (crop: string, language: string = 'en') => {
+  const prompt = `Predict the market price trend for ${crop} for the next 3 months. Provide current price estimate, predicted price, and trend (up/down/stable) in JSON format. 
+  All text descriptions must be in ${language} language.`;
   
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -88,11 +91,11 @@ export const getMarketPrediction = async (crop: string) => {
   return JSON.parse(response.text);
 };
 
-export const chatWithAI = async (message: string, history: any[]) => {
+export const chatWithAI = async (message: string, history: any[], language: string = 'en') => {
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     config: {
-      systemInstruction: "You are Farmex AI, a helpful agricultural assistant. You support English, Hindi, Telugu, and Marathi. Provide practical farming advice, weather-based tips, and crop management strategies.",
+      systemInstruction: `You are Farmex AI, a helpful agricultural assistant. You support English, Hindi, and Marathi. Current user language is ${language}. Provide practical farming advice, weather-based tips, and crop management strategies in ${language}.`,
     },
   });
 
