@@ -169,6 +169,7 @@ export default function App() {
     farmingType: 'Traditional', 
     month: new Date().toLocaleString('en-US', { month: 'long' }) 
   });
+  const [calendarFilterMonth, setCalendarFilterMonth] = useState<string>(new Date().toLocaleString('en-US', { month: 'long' }));
 
   const addTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +210,7 @@ export default function App() {
         completed: false
       }));
       setTasks([...newTasks, ...tasks]);
+      setCalendarFilterMonth(smartPlanningInput.month);
       setIsSmartPlanningModalOpen(false);
     } catch (err) {
       console.error('Smart planning error:', err);
@@ -710,54 +712,77 @@ export default function App() {
     </div>
   );
 
-  const renderCalendar = () => (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">{t.calendar.title}</h2>
-          <button 
-            onClick={() => setIsTaskModalOpen(true)}
-            className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-        </div>
-        
-        <div className="space-y-3">
-          {tasks.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-              <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">No tasks scheduled yet.</p>
-            </div>
-          ) : (
-            tasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((task) => (
-              <div key={task.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
-                <button 
-                  onClick={() => toggleTask(task.id)}
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                    task.completed ? 'bg-green-600 text-white' : 'bg-white border-2 border-gray-200 text-transparent'
-                  }`}
+  const renderCalendar = () => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    const filteredTasks = tasks.filter(task => {
+      if (calendarFilterMonth === 'All') return true;
+      const taskDate = new Date(task.date);
+      const taskMonth = taskDate.toLocaleString('en-US', { month: 'long' });
+      return taskMonth === calendarFilterMonth;
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{t.calendar.title}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-gray-500 font-medium">Filter:</span>
+                <select 
+                  value={calendarFilterMonth}
+                  onChange={(e) => setCalendarFilterMonth(e.target.value)}
+                  className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg outline-none border-none cursor-pointer"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                </button>
-                <div className="flex-1">
-                  <h4 className={`font-bold text-sm ${task.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">{new Date(task.date).toLocaleDateString(language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'mr-IN', { month: 'short', day: 'numeric' })}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{task.type}</span>
-                  <button 
-                    onClick={() => deleteTask(task.id)}
-                    className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                  <option value="All">All Months</option>
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
-            ))
-          )}
+            </div>
+            <button 
+              onClick={() => setIsTaskModalOpen(true)}
+              className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            {filteredTasks.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No tasks for {calendarFilterMonth === 'All' ? 'any month' : calendarFilterMonth}.</p>
+              </div>
+            ) : (
+              filteredTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((task) => (
+                <div key={task.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                  <button 
+                    onClick={() => toggleTask(task.id)}
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                      task.completed ? 'bg-green-600 text-white' : 'bg-white border-2 border-gray-200 text-transparent'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                  </button>
+                  <div className="flex-1">
+                    <h4 className={`font-bold text-sm ${task.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.title}</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">{new Date(task.date).toLocaleDateString(language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'mr-IN', { month: 'short', day: 'numeric' })}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{task.type}</span>
+                    <button 
+                      onClick={() => deleteTask(task.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </div>
 
       <div className="bg-green-600 p-6 rounded-3xl text-white shadow-lg shadow-green-200">
         <h3 className="font-bold mb-2">{t.calendar.smartPlanning}</h3>
@@ -911,6 +936,7 @@ export default function App() {
       </AnimatePresence>
     </div>
   );
+};
 
   const tabs = [
     { id: 'dashboard', label: t.tabs.dashboard, icon: Cloud },
