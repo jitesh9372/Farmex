@@ -134,15 +134,26 @@ export default function App() {
       if (marketSearchQuery) params.append('market', marketSearchQuery);
       
       const response = await fetch(`/api/market/search?${params.toString()}`);
+      const contentType = response.headers.get("content-type");
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch market data');
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch market data');
+        } else {
+          throw new Error(`Server error: ${response.status}. Please try again later.`);
+        }
       }
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setMarketResults(data);
+
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setMarketResults(data);
+        } else {
+          setMarketResults([]);
+        }
       } else {
-        setMarketResults([]);
+        throw new Error("Invalid response from server. Please try again.");
       }
     } catch (error: any) {
       console.error('Market search error:', error);
@@ -590,7 +601,7 @@ export default function App() {
     };
 
     return (
-      <div className="flex flex-col h-[calc(100vh-180px)] sm:h-[calc(100vh-220px)]">
+      <div className="flex flex-col h-[calc(100vh-220px)] sm:h-[calc(100vh-240px)]">
         <div className="flex-1 overflow-y-auto space-y-4 pb-4 scrollbar-hide px-1">
           {chatHistory.length === 0 && (
             <div className="text-center py-12">

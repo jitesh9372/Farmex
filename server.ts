@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import { GoogleGenAI, Type } from "@google/genai";
 
 dotenv.config();
 
@@ -13,6 +14,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || "farmex-secret-key";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 // Helper for fetch with retry and timeout
 async function fetchWithRetry(url: string, options: any = {}, retries = 3, backoff = 1000) {
@@ -118,6 +122,142 @@ async function startServer() {
   app.post("/api/auth/logout", (req, res) => {
     res.clearCookie("token", { secure: true, sameSite: "none" });
     res.json({ message: "Logged out" });
+  });
+
+  // AI Routes
+  app.post("/api/ai/crop-recommendation", async (req, res) => {
+    try {
+      const { location, soilType, season, water, language } = req.body;
+      const prompt = `As an expert agricultural scientist, recommend the best crops for a farmer in ${location} with ${soilType} soil during the ${season} season. Water availability is ${water}. 
+      Provide the recommendation in ${language} language.
+      Provide the recommendation in JSON format with the following fields:
+      - crop: string (name of the crop in ${language})
+      - yield: string (expected yield per acre in ${language})
+      - risk: string (Low, Medium, or High - in ${language})
+      - reasoning: string (brief explanation in ${language})`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              crop: { type: Type.STRING },
+              yield: { type: Type.STRING },
+              risk: { type: Type.STRING },
+              reasoning: { type: Type.STRING },
+            },
+            required: ["crop", "yield", "risk", "reasoning"],
+          },
+        },
+      });
+
+      res.json(JSON.parse(result.text));
+    } catch (error: any) {
+      console.error("Crop AI Error:", error);
+      res.status(500).json({ message: "AI recommendation failed", error: error.message });
+    }
+  });
+
+  app.post("/api/ai/detect-disease", async (req, res) => {
+    try {
+      const { image, language } = req.body;
+      const prompt = `Analyze this crop image and identify any diseases. Provide the disease name, confidence level (0-1), and suggested treatment in JSON format. 
+      All text descriptions must be in ${language} language.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: {
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "image/jpeg", data: image } }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              disease: { type: Type.STRING },
+              confidence: { type: Type.NUMBER },
+              treatment: { type: Type.STRING },
+            },
+            required: ["disease", "confidence", "treatment"],
+          },
+        },
+      });
+
+      res.json(JSON.parse(result.text));
+    } catch (error: any) {
+      console.error("Disease AI Error:", error);
+      res.status(500).json({ message: "AI disease detection failed", error: error.message });
+    }
+  });
+
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { message, history, language } = req.body;
+      const chat = ai.chats.create({
+        model: "gemini-3-flash-preview",
+        history: history.map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.text }]
+        })),
+        config: {
+          systemInstruction: `You are Farmex AI, a helpful agricultural assistant. You support English, Hindi, and Marathi. Current user language is ${language}. Provide practical farming advice, weather-based tips, and crop management strategies in ${language}. Keep responses concise and helpful.`,
+        },
+      });
+
+      const result = await chat.sendMessage({ message });
+      res.json({ text: result.text });
+    } catch (error: any) {
+      console.error("Chat AI Error:", error);
+      res.status(500).json({ message: "AI chat failed", error: error.message });
+    }
+  });
+
+  app.post("/api/ai/smart-schedule", async (req, res) => {
+    try {
+      const { location, weather, farmingType, month, language } = req.body;
+      const prompt = `As an expert agricultural planner, generate a 7-day farming task schedule for a farmer in ${location}. 
+      Farming Type: ${farmingType}
+      Month: ${month}
+      Current weather is ${weather?.temp}°C, ${weather?.condition}.
+      Provide the schedule in ${language} language.
+      Return an array of tasks in JSON format with the following fields:
+      - title: string (task name in ${language})
+      - date: string (ISO date YYYY-MM-DD)
+      - type: string (Irrigation, Sowing, Fertilizing, Harvesting, Pest Control, etc. in ${language})
+      - reasoning: string (brief explanation in ${language})`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                date: { type: Type.STRING },
+                type: { type: Type.STRING },
+                reasoning: { type: Type.STRING },
+              },
+              required: ["title", "date", "type", "reasoning"],
+            },
+          },
+        },
+      });
+
+      res.json(JSON.parse(result.text));
+    } catch (error: any) {
+      console.error("Schedule AI Error:", error);
+      res.status(500).json({ message: "AI schedule generation failed", error: error.message });
+    }
   });
 
   // Market Search API using data.gov.in
