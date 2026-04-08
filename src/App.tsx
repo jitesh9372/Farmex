@@ -292,8 +292,44 @@ export default function App() {
     setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   };
 
+  const [debugInfo, setDebugInfo] = useState<{ health: any, aiTest: any } | null>(null);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const healthRes = await fetch('/api/health');
+        const health = await healthRes.json();
+        
+        let aiTest = null;
+        if (health.aiConfigured) {
+          try {
+            const aiRes = await fetch('/api/test-ai');
+            aiTest = await aiRes.json();
+          } catch (e) {
+            aiTest = { error: 'AI test failed' };
+          }
+        }
+        
+        setDebugInfo({ health, aiTest });
+      } catch (e) {
+        setDebugInfo({ health: { status: 'error', message: 'Could not connect to server' }, aiTest: null });
+      }
+    };
+    
+    if (user) checkHealth();
+  }, [user]);
+
   const renderDashboard = () => (
     <div className="space-y-6">
+      {/* Debug Info (Only visible if there are issues) */}
+      {debugInfo && (debugInfo.health.status === 'error' || !debugInfo.health.aiConfigured) && (
+        <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-xs font-mono text-red-600">
+          <p className="font-bold mb-1">⚠️ System Diagnostic:</p>
+          <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+          <p className="mt-2 text-[10px]">Please ensure GEMINI_API_KEY is set in the environment.</p>
+        </div>
+      )}
+
       {/* Weather Card */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-6">

@@ -317,6 +317,14 @@ export default function Login({ onLogin }: LoginProps) {
             <Chrome className="w-5 h-5 text-blue-500" />
             Continue with Google
           </button>
+          
+          {/* Developer Bypass */}
+          <button 
+            onClick={() => onLogin({ id: 'dev-user', email: 'dev@example.com', name: 'Developer User' })}
+            className="text-[10px] text-gray-300 hover:text-gray-400 transition-colors mt-2"
+          >
+            Skip Login (Dev Mode)
+          </button>
         </div>
 
         <p className="mt-8 text-center text-sm font-medium text-gray-500">

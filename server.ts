@@ -16,6 +16,10 @@ const __dirname = path.dirname(__filename);
 const JWT_SECRET = process.env.JWT_SECRET || "farmex-secret-key";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
+if (!GEMINI_API_KEY) {
+  console.warn("WARNING: GEMINI_API_KEY is not set. AI features will not work.");
+}
+
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 // Helper for fetch with retry and timeout
@@ -68,7 +72,28 @@ async function startServer() {
 
   // API routes
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", message: "Farmex API is running" });
+    res.json({ 
+      status: "ok", 
+      message: "Farmex API is running",
+      aiConfigured: !!GEMINI_API_KEY,
+      marketConfigured: !!process.env.GOV_DATA_API_KEY,
+      env: process.env.NODE_ENV
+    });
+  });
+
+  app.get("/api/test-ai", async (req, res) => {
+    try {
+      if (!GEMINI_API_KEY) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      }
+      const result = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: "Say 'AI is working'"
+      });
+      res.json({ message: result.text });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Auth Routes
@@ -128,6 +153,8 @@ async function startServer() {
   app.post("/api/ai/crop-recommendation", async (req, res) => {
     try {
       const { location, soilType, season, water, language } = req.body;
+      console.log(`AI Crop Recommendation request: ${location}, ${soilType}, ${season}, ${water}, ${language}`);
+      
       const prompt = `As an expert agricultural scientist, recommend the best crops for a farmer in ${location} with ${soilType} soil during the ${season} season. Water availability is ${water}. 
       Provide the recommendation in ${language} language.
       Provide the recommendation in JSON format with the following fields:
@@ -137,7 +164,7 @@ async function startServer() {
       - reasoning: string (brief explanation in ${language})`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -164,17 +191,17 @@ async function startServer() {
   app.post("/api/ai/detect-disease", async (req, res) => {
     try {
       const { image, language } = req.body;
+      console.log(`AI Disease Detection request for language: ${language}`);
+      
       const prompt = `Analyze this crop image and identify any diseases. Provide the disease name, confidence level (0-1), and suggested treatment in JSON format. 
       All text descriptions must be in ${language} language.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: "image/jpeg", data: image } }
-          ]
-        },
+        model: "gemini-1.5-flash",
+        contents: [
+          prompt,
+          { inlineData: { mimeType: "image/jpeg", data: image } }
+        ],
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -199,8 +226,10 @@ async function startServer() {
   app.post("/api/ai/chat", async (req, res) => {
     try {
       const { message, history, language } = req.body;
+      console.log(`AI Chat request: ${message.substring(0, 20)}...`);
+      
       const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         history: history.map((msg: any) => ({
           role: msg.role === 'user' ? 'user' : 'model',
           parts: [{ text: msg.text }]
@@ -221,6 +250,8 @@ async function startServer() {
   app.post("/api/ai/smart-schedule", async (req, res) => {
     try {
       const { location, weather, farmingType, month, language } = req.body;
+      console.log(`AI Smart Schedule request: ${location}, ${farmingType}, ${month}, ${language}`);
+      
       const prompt = `As an expert agricultural planner, generate a 7-day farming task schedule for a farmer in ${location}. 
       Farming Type: ${farmingType}
       Month: ${month}
@@ -233,7 +264,7 @@ async function startServer() {
       - reasoning: string (brief explanation in ${language})`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -286,6 +317,20 @@ async function startServer() {
     try {
       console.log(`Fetching market data: ${url}`);
       let response = await fetchWithRetry(url, { timeout: 15000 });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Market API returned error ${response.status}: ${errorText.substring(0, 100)}`);
+        return res.status(response.status).json({ message: `Market API error: ${response.status}` });
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error(`Market API returned non-JSON response: ${text.substring(0, 100)}`);
+        return res.status(500).json({ message: "Market API returned invalid format" });
+      }
+
       let data: any = await response.json();
       
       // Fallback: If no results with both filters, try searching with only commodity
@@ -294,7 +339,11 @@ async function startServer() {
         const capitalizedCommodity = capitalize(commodity as string);
         const broaderUrl = `https://api.data.gov.in/resource/${resourceId}?api-key=${apiKey}&format=json&limit=100&filters[commodity]=${encodeURIComponent(capitalizedCommodity)}`;
         response = await fetchWithRetry(broaderUrl, { timeout: 15000 });
-        data = await response.json();
+        
+        if (response.ok) {
+          const broaderData = await response.json();
+          data = broaderData;
+        }
       }
 
       if (data.records && data.records.length > 0) {
