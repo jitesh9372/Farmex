@@ -56,6 +56,15 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
+    // Handle OAuth callback in popup
+    if (window.opener && (window.location.hash.includes('access_token=') || window.location.search.includes('error='))) {
+      // Give Supabase a moment to persist the session to localStorage
+      setTimeout(() => {
+        window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+        window.close();
+      }, 1000);
+    }
+
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {

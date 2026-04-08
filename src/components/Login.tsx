@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sprout, Mail, Lock, User, ArrowRight, Github, Chrome } from 'lucide-react';
+import { Sprout, Mail, Lock, User, ArrowRight, Github, Chrome, Loader2 } from 'lucide-react';
 import type { User as UserType } from '../types';
 import { supabase } from '../supabaseClient';
 
@@ -85,26 +85,50 @@ export default function Login({ onLogin }: LoginProps) {
 
   const handleGoogleLogin = async () => {
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      setError('');
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin,
+          skipBrowserRedirect: true
         }
       });
+
       if (authError) throw authError;
+
+      if (data?.url) {
+        const authWindow = window.open(
+          data.url,
+          'supabase_oauth_popup',
+          'width=600,height=700'
+        );
+
+        if (!authWindow) {
+          setError('Popup blocked! Please allow popups for this site.');
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     }
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const errorMsg = params.get('error_description');
-    if (errorMsg) {
-      setError(errorMsg);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        // Auth state change listener in App.tsx will handle the user state
+        // We just need to clear any errors here
+        setError('');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   useEffect(() => {
@@ -122,135 +146,186 @@ export default function Login({ onLogin }: LoginProps) {
   }, [onLogin]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative Background Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-green-100/50 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/50 rounded-full blur-3xl animate-pulse" />
+      
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white rounded-[2rem] shadow-xl shadow-blue-900/5 p-8 border border-gray-100"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-green-900/5 p-8 border border-white relative z-10"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-50 rounded-2xl mb-4">
-            <Sprout className="w-8 h-8 text-green-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+          <motion.div 
+            initial={{ rotate: -10, scale: 0.8 }}
+            animate={{ rotate: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl mb-6 shadow-lg shadow-green-200"
+          >
+            <Sprout className="w-10 h-10 text-white" />
+          </motion.div>
+          <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">
+            Farmex AI
           </h1>
-          <p className="text-gray-500">
-            {isLogin ? 'Enter your details to access your farm' : 'Join Farmex to start your smart farming journey'}
+          <p className="text-gray-500 font-medium">
+            Your intelligent farming companion
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Tab Switcher */}
+        <div className="bg-gray-100/50 p-1.5 rounded-2xl flex relative mb-8">
+          <motion.div
+            className="absolute inset-y-1.5 bg-white rounded-xl shadow-sm z-0"
+            initial={false}
+            animate={{
+              x: isLogin ? 0 : '100%',
+              width: 'calc(50% - 6px)'
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          />
+          <button
+            onClick={() => setIsLogin(true)}
+            className={`flex-1 py-2.5 text-sm font-bold relative z-10 transition-colors ${isLogin ? 'text-green-600' : 'text-gray-400'}`}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => setIsLogin(false)}
+            className={`flex-1 py-2.5 text-sm font-bold relative z-10 transition-colors ${!isLogin ? 'text-green-600' : 'text-gray-400'}`}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           <AnimatePresence mode="wait">
-            {!isLogin && (
+            {!isLogin ? (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-1"
+                key="signup-fields"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-5"
               >
-                <label className="text-sm font-medium text-gray-700 ml-1">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                    placeholder="John Doe"
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Full Name</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 focus:bg-white transition-all font-medium"
+                      placeholder="Enter your name"
+                    />
+                  </div>
                 </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          <motion.div layout className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Email Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 focus:bg-white transition-all font-medium"
+                  placeholder="name@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 focus:bg-white transition-all font-medium"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="text-xs font-bold text-red-500 text-center bg-red-50 py-3 px-4 rounded-2xl border border-red-100"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            {success && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="text-xs font-bold text-green-600 text-center bg-green-50 py-3 px-4 rounded-2xl border border-green-100"
+              >
+                {success}
               </motion.div>
             )}
           </AnimatePresence>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700 ml-1">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                placeholder="name@example.com"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700 ml-1">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm text-red-500 text-center bg-red-50 py-3 px-4 rounded-xl border border-red-100"
-            >
-              {error}
-            </motion.div>
-          )}
-
-          {success && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm text-green-600 text-center bg-green-50 py-3 px-4 rounded-xl border border-green-100"
-            >
-              {success}
-            </motion.div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+            className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-2xl shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 active:scale-[0.98]"
           >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                {isLogin ? 'Sign In' : 'Create Account'}
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </button>
         </form>
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
+            <div className="w-full border-t border-gray-100"></div>
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-gray-500">Or continue with</span>
+          <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
+            <span className="px-4 bg-white text-gray-400">Or continue with</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
           <button 
             onClick={handleGoogleLogin}
-            className="flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium text-gray-700"
+            className="flex items-center justify-center gap-3 px-4 py-3.5 bg-white border border-gray-100 rounded-2xl hover:bg-gray-50 hover:border-gray-200 transition-all font-bold text-sm text-gray-700 shadow-sm active:scale-[0.98]"
           >
             <Chrome className="w-5 h-5 text-blue-500" />
-            Google
+            Continue with Google
           </button>
         </div>
 
-        <p className="mt-8 text-center text-gray-600">
-          {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+        <p className="mt-8 text-center text-sm font-medium text-gray-500">
+          {isLogin ? "New to Farmex?" : "Already have an account?"}{' '}
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-green-600 font-semibold hover:underline"
+            className="text-green-600 font-bold hover:text-green-700 transition-colors"
           >
-            {isLogin ? 'Sign Up' : 'Sign In'}
+            {isLogin ? 'Create one now' : 'Sign in here'}
           </button>
         </p>
       </motion.div>
