@@ -56,6 +56,12 @@ export interface MarketSearchResult {
   details?: string;
 }
 
+export interface DiseaseResult {
+  disease: string;
+  confidence: number;
+  treatment: string;
+}
+
 export interface User {
   id: string;
   email: string;

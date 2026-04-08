@@ -91,11 +91,17 @@ export const getMarketPrediction = async (crop: string, language: string = 'en')
   return JSON.parse(response.text);
 };
 
-export const chatWithAI = async (message: string, history: any[], language: string = 'en') => {
+export const chatWithAI = async (message: string, history: { role: 'user' | 'ai'; text: string }[], language: string = 'en') => {
+  const geminiHistory = history.map(msg => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.text }]
+  }));
+
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
+    history: geminiHistory,
     config: {
-      systemInstruction: `You are Farmex AI, a helpful agricultural assistant. You support English, Hindi, and Marathi. Current user language is ${language}. Provide practical farming advice, weather-based tips, and crop management strategies in ${language}.`,
+      systemInstruction: `You are Farmex AI, a helpful agricultural assistant. You support English, Hindi, and Marathi. Current user language is ${language}. Provide practical farming advice, weather-based tips, and crop management strategies in ${language}. Keep responses concise and helpful.`,
     },
   });
 

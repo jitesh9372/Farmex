@@ -35,7 +35,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { fetchWeather } from './services/weatherService';
 import { getCropRecommendation, detectDisease, chatWithAI, getMarketPrediction, getSmartSchedule } from './services/geminiService';
 import { SOIL_TYPES, SEASONS, WATER_AVAILABILITY } from './constants';
-import type { WeatherData, CropRecommendation, FarmingTask, RiskAlert, User as UserType, MarketSearchResult } from './types';
+import type { WeatherData, CropRecommendation, FarmingTask, RiskAlert, User as UserType, MarketSearchResult, DiseaseResult } from './types';
 import { translations, type Language } from './translations';
 import Login from './components/Login';
 import { supabase } from './supabaseClient';
@@ -105,9 +105,12 @@ export default function App() {
   const [cropFormData, setCropFormData] = useState({ location: 'Nagpur', soilType: 'Black', season: 'Rabi (Winter)', water: 'Medium' });
   const [cropResult, setCropResult] = useState<CropRecommendation | null>(null);
   const [diseaseImage, setDiseaseImage] = useState<string | null>(null);
-  const [diseaseResult, setDiseaseResult] = useState<any>(null);
+  const [diseaseResult, setDiseaseResult] = useState<DiseaseResult | null>(null);
   const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai'; text: string }[]>(() => {
+    const saved = localStorage.getItem('farmex_chat');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Market States
   const [marketSearchQuery, setMarketSearchQuery] = useState('');
@@ -116,13 +119,18 @@ export default function App() {
   const [isMarketLoading, setIsMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
 
-  const handleMarketSearch = async (e?: React.FormEvent) => {
+  useEffect(() => {
+    localStorage.setItem('farmex_chat', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  const handleMarketSearch = async (e?: React.FormEvent, customCommodity?: string) => {
     if (e) e.preventDefault();
     setIsMarketLoading(true);
     setMarketError(null);
     try {
       const params = new URLSearchParams();
-      if (commoditySearchQuery) params.append('commodity', commoditySearchQuery);
+      const commodity = customCommodity || commoditySearchQuery;
+      if (commodity) params.append('commodity', commodity);
       if (marketSearchQuery) params.append('market', marketSearchQuery);
       
       const response = await fetch(`/api/market/search?${params.toString()}`);
@@ -419,7 +427,7 @@ export default function App() {
               disabled={loading}
               className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-200 hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
-              {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
               {loading ? t.crop.analyzing : t.crop.submit}
             </button>
           </form>
@@ -427,17 +435,38 @@ export default function App() {
 
         {cropResult && (
           <div className="bg-green-50 p-6 rounded-3xl border border-green-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold text-green-800 uppercase tracking-wider">Recommendation Result</h3>
+              <button 
+                onClick={() => setCropResult(null)}
+                className="text-xs font-bold text-green-600 hover:text-red-500 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-2xl font-bold text-green-800">{cropResult.crop}</h3>
                 <p className="text-sm text-green-600 font-medium mt-1">{t.crop.yield}: {cropResult.yield}</p>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                cropResult.risk === 'Low' ? 'bg-green-200 text-green-800' : 
-                cropResult.risk === 'Medium' ? 'bg-orange-200 text-orange-800' : 'bg-red-200 text-red-800'
-              }`}>
-                {cropResult.risk} {t.crop.risk}
-              </span>
+              <div className="flex flex-col items-end gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                  cropResult.risk === 'Low' ? 'bg-green-200 text-green-800' : 
+                  cropResult.risk === 'Medium' ? 'bg-orange-200 text-orange-800' : 'bg-red-200 text-red-800'
+                }`}>
+                  {cropResult.risk} {t.crop.risk}
+                </span>
+                <button 
+                  onClick={() => {
+                    setCommoditySearchQuery(cropResult.crop);
+                    setActiveTab('market');
+                    handleMarketSearch(undefined, cropResult.crop);
+                  }}
+                  className="text-xs font-bold text-green-700 hover:underline flex items-center gap-1"
+                >
+                  <TrendingUp className="w-3 h-3" /> Check Market Price
+                </button>
+              </div>
             </div>
             <p className="text-gray-700 leading-relaxed">{cropResult.reasoning}</p>
           </div>
@@ -474,6 +503,20 @@ export default function App() {
 
     return (
       <div className="space-y-6">
+        {diseaseImage && (
+          <div className="flex justify-center mb-4">
+            <button 
+              onClick={() => {
+                setDiseaseImage(null);
+                setDiseaseResult(null);
+              }}
+              className="text-xs font-bold text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+            >
+              <Trash2 className="w-3 h-3" /> Clear Image & Result
+            </button>
+          </div>
+        )}
+
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">{t.disease.title}</h2>
           <p className="text-sm text-gray-500 mb-8">{t.disease.subtitle}</p>
@@ -556,6 +599,16 @@ export default function App() {
               </div>
               <h3 className="text-lg font-bold text-gray-900">{t.chat.title}</h3>
               <p className="text-sm text-gray-500 max-w-xs mx-auto">{t.chat.subtitle}</p>
+            </div>
+          )}
+          {chatHistory.length > 0 && (
+            <div className="flex justify-center mb-4">
+              <button 
+                onClick={() => setChatHistory([])}
+                className="text-xs font-bold text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+              >
+                <Trash2 className="w-3 h-3" /> Clear Conversation
+              </button>
             </div>
           )}
           {chatHistory.map((msg, i) => (
