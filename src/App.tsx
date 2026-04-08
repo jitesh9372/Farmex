@@ -444,12 +444,12 @@ export default function App() {
                 Clear
               </button>
             </div>
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
               <div>
                 <h3 className="text-2xl font-bold text-green-800">{cropResult.crop}</h3>
                 <p className="text-sm text-green-600 font-medium mt-1">{t.crop.yield}: {cropResult.yield}</p>
               </div>
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-row sm:flex-col items-center sm:items-end gap-3 sm:gap-2 w-full sm:w-auto">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                   cropResult.risk === 'Low' ? 'bg-green-200 text-green-800' : 
                   cropResult.risk === 'Medium' ? 'bg-orange-200 text-orange-800' : 'bg-red-200 text-red-800'
@@ -462,13 +462,13 @@ export default function App() {
                     setActiveTab('market');
                     handleMarketSearch(undefined, cropResult.crop);
                   }}
-                  className="text-xs font-bold text-green-700 hover:underline flex items-center gap-1"
+                  className="text-xs font-bold text-green-700 hover:underline flex items-center gap-1 ml-auto sm:ml-0"
                 >
                   <TrendingUp className="w-3 h-3" /> Check Market Price
                 </button>
               </div>
             </div>
-            <p className="text-gray-700 leading-relaxed">{cropResult.reasoning}</p>
+            <p className="text-gray-700 leading-relaxed text-sm sm:text-base">{cropResult.reasoning}</p>
           </div>
         )}
       </div>
@@ -590,8 +590,8 @@ export default function App() {
     };
 
     return (
-      <div className="flex flex-col h-[calc(100vh-200px)]">
-        <div className="flex-1 overflow-y-auto space-y-4 pb-4 scrollbar-hide">
+      <div className="flex flex-col h-[calc(100vh-180px)] sm:h-[calc(100vh-220px)]">
+        <div className="flex-1 overflow-y-auto space-y-4 pb-4 scrollbar-hide px-1">
           {chatHistory.length === 0 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 mx-auto mb-4">
@@ -835,7 +835,7 @@ export default function App() {
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{task.type}</span>
                     <button 
                       onClick={() => deleteTask(task.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-1.5 text-gray-400 hover:text-red-500 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -861,7 +861,7 @@ export default function App() {
       {/* Smart Planning Input Modal */}
       <AnimatePresence>
         {isSmartPlanningModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -870,14 +870,15 @@ export default function App() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl"
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              className="relative bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-3xl p-6 sm:p-8 shadow-2xl"
             >
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden" />
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900">Smart Planning</h3>
-                <button onClick={() => setIsSmartPlanningModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <button onClick={() => setIsSmartPlanningModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl hidden sm:block">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -926,7 +927,7 @@ export default function App() {
       {/* Task Modal */}
       <AnimatePresence>
         {isTaskModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -935,14 +936,15 @@ export default function App() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl"
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              className="relative bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-3xl p-6 sm:p-8 shadow-2xl"
             >
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden" />
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900">Add New Task</h3>
-                <button onClick={() => setIsTaskModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <button onClick={() => setIsTaskModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl hidden sm:block">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -1042,7 +1044,7 @@ export default function App() {
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              className="fixed inset-y-0 left-0 w-72 bg-white z-50 shadow-2xl lg:hidden p-6"
+              className="fixed inset-y-0 left-0 w-72 bg-white z-50 shadow-2xl lg:hidden p-6 flex flex-col"
             >
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-2">
@@ -1055,7 +1057,7 @@ export default function App() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <nav className="space-y-2">
+              <nav className="space-y-2 flex-1 overflow-y-auto">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
@@ -1069,6 +1071,40 @@ export default function App() {
                   </button>
                 ))}
               </nav>
+
+              {/* Mobile Language Switcher */}
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Language / भाषा</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['en', 'hi', 'mr'] as Language[]).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                        language === lang 
+                          ? 'bg-green-600 text-white border-transparent' 
+                          : 'bg-white text-gray-500 border-gray-200'
+                      }`}
+                    >
+                      {lang === 'en' ? 'EN' : lang === 'hi' ? 'HI' : 'MR'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
+                      {user.name[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">{user.name}</p>
+                      <button onClick={handleLogout} className="text-xs text-red-500 font-bold">Logout</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </>
         )}
@@ -1186,17 +1222,19 @@ export default function App() {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 px-4 py-2 flex justify-between items-center z-40">
-        {tabs.slice(0, 5).map(tab => (
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 px-2 py-2 flex justify-around items-center z-40 pb-safe">
+        {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+            className={`flex flex-col items-center gap-1 p-1 rounded-xl transition-all min-w-[56px] ${
               activeTab === tab.id ? 'text-green-600' : 'text-gray-400'
             }`}
           >
-            <tab.icon className={`w-6 h-6 ${activeTab === tab.id ? 'scale-110' : ''}`} />
-            <span className="text-[10px] font-bold uppercase tracking-tighter">{tab.label.split(' ')[0]}</span>
+            <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'scale-110' : ''}`} />
+            <span className="text-[9px] font-bold uppercase tracking-tighter text-center leading-none">
+              {tab.label.split(' ')[0]}
+            </span>
           </button>
         ))}
       </nav>
