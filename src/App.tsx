@@ -295,28 +295,50 @@ export default function App() {
   const [debugInfo, setDebugInfo] = useState<{ health: any, aiTest: any } | null>(null);
 
   useEffect(() => {
-    const checkHealth = async () => {
+    const checkHealth = async (retries = 3) => {
       try {
         const healthRes = await fetch('/api/health');
+        if (!healthRes.ok) {
+          throw new Error(`Server returned ${healthRes.status}`);
+        }
         const health = await healthRes.json();
         
         let aiTest = null;
         if (health.aiConfigured) {
           try {
             const aiRes = await fetch('/api/test-ai');
-            aiTest = await aiRes.json();
+            if (aiRes.ok) {
+              aiTest = await aiRes.json();
+            } else {
+              aiTest = { error: `AI test returned ${aiRes.status}` };
+            }
           } catch (e) {
-            aiTest = { error: 'AI test failed' };
+            aiTest = { error: 'AI test failed to connect' };
           }
         }
         
         setDebugInfo({ health, aiTest });
-      } catch (e) {
-        setDebugInfo({ health: { status: 'error', message: 'Could not connect to server' }, aiTest: null });
+      } catch (e: any) {
+        if (retries > 0) {
+          console.log(`Health check failed, retrying... (${retries} left)`);
+          setTimeout(() => checkHealth(retries - 1), 2000);
+        } else {
+          setDebugInfo({ 
+            health: { 
+              status: 'error', 
+              message: `Could not connect to server: ${e.message}. Please refresh the page.` 
+            }, 
+            aiTest: null 
+          });
+        }
       }
     };
     
-    if (user) checkHealth();
+    if (user) {
+      // Small delay to ensure server is ready
+      const timer = setTimeout(() => checkHealth(), 1000);
+      return () => clearTimeout(timer);
+    }
   }, [user]);
 
   const renderDashboard = () => (
