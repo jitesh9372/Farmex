@@ -67,7 +67,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
 
   // API routes
@@ -294,10 +295,20 @@ async function startServer() {
   // Market Search API using data.gov.in
   app.get("/api/market/search", async (req, res) => {
     const { commodity, market } = req.query;
-    const apiKey = process.env.GOV_DATA_API_KEY || "579b464db66ec23bdd000001eac8f65e4d6f4218622c815bd43eb942";
+    
+    // Check if the provided key is the OpenWeatherMap key (common mistake)
+    let apiKey = process.env.GOV_DATA_API_KEY;
+    const OWM_KEY_PREFIX = "b3b98";
+    const DEFAULT_GOV_KEY = "579b464db66ec23bdd000001eac8f65e4d6f4218622c815bd43eb942";
+    
+    if (!apiKey || apiKey.startsWith(OWM_KEY_PREFIX)) {
+      console.warn(`Market API: Using fallback key because ${!apiKey ? 'no key provided' : 'provided key looks like OpenWeatherMap key'}`);
+      apiKey = DEFAULT_GOV_KEY;
+    }
+    
     const resourceId = "5d1497a5-b862-4f30-81f3-7a771bca7a6b";
     
-    console.log(`Using API Key: ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}`);
+    console.log(`Using Market API Key: ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}`);
     
     let url = `https://api.data.gov.in/resource/${resourceId}?api-key=${apiKey}&format=json&limit=100`;
     
@@ -321,6 +332,14 @@ async function startServer() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Market API returned error ${response.status}: ${errorText.substring(0, 100)}`);
+        
+        if (response.status === 403) {
+          return res.status(403).json({ 
+            message: "Market API key is unauthorized. If you provided a custom key, please check it. Otherwise, the system fallback may have expired.",
+            details: errorText.includes("Key not authorised") ? "Key not authorised" : errorText
+          });
+        }
+        
         return res.status(response.status).json({ message: `Market API error: ${response.status}` });
       }
 

@@ -368,10 +368,19 @@ export default function App() {
     <div className="space-y-6">
       {/* Debug Info (Only visible if there are issues) */}
       {debugInfo && (debugInfo.health.status === 'error' || !debugInfo.health.aiConfigured) && (
-        <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-xs font-mono text-red-600">
-          <p className="font-bold mb-1">⚠️ System Diagnostic:</p>
-          <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-          <p className="mt-2 text-[10px]">Please ensure GEMINI_API_KEY is set in the environment.</p>
+        <div className="bg-red-50 p-6 rounded-3xl border border-red-100 text-xs font-mono text-red-600 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            <p className="font-bold text-sm">System Diagnostic:</p>
+          </div>
+          <div className="bg-white/50 p-4 rounded-xl border border-red-100 overflow-auto max-h-40">
+            <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+          </div>
+          <div className="space-y-1 text-[10px] font-medium">
+            <p>• Ensure <span className="font-bold">GEMINI_API_KEY</span> is set in the environment.</p>
+            <p>• If you see a 404 error, the backend server might still be starting. Please wait a moment and refresh.</p>
+            <p>• Check if the Market API key is correct (it should not be your OpenWeatherMap key).</p>
+          </div>
         </div>
       )}
 
@@ -617,6 +626,7 @@ export default function App() {
             <input 
               type="file" 
               accept="image/*" 
+              capture="environment"
               onChange={handleImageUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
@@ -682,14 +692,14 @@ export default function App() {
     };
 
     return (
-      <div className="flex flex-col h-[calc(100vh-220px)] sm:h-[calc(100vh-240px)]">
+      <div className="flex flex-col h-[calc(100vh-280px)] sm:h-[calc(100vh-320px)]">
         <div className="flex-1 overflow-y-auto space-y-4 pb-4 scrollbar-hide px-1">
           {chatHistory.length === 0 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 mx-auto mb-4">
-                <MessageSquare className="w-8 h-8" />
+                <Bot className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">{t.chat.title}</h3>
+              <h3 className="text-lg font-bold text-gray-900">{t.chat.welcome || 'Welcome to Farmex AI'}</h3>
               <p className="text-sm text-gray-500 max-w-xs mx-auto">{t.chat.subtitle}</p>
             </div>
           )}
@@ -704,42 +714,47 @@ export default function App() {
             </div>
           )}
           {chatHistory.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] p-4 rounded-2xl text-sm ${
+            <motion.div 
+              key={i} 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${
                 msg.role === 'user' 
-                  ? 'bg-green-600 text-white rounded-br-none' 
-                  : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none shadow-sm'
+                  ? 'bg-green-600 text-white rounded-tr-none' 
+                  : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none shadow-sm'
               }`}>
                 {msg.text}
               </div>
-            </div>
+            </motion.div>
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-bl-none shadow-sm flex gap-1">
-                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></div>
-                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce delay-100"></div>
-                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce delay-200"></div>
+              <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce"></div>
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce delay-100"></div>
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce delay-200"></div>
               </div>
             </div>
           )}
         </div>
         
-        <div className="pt-4 flex gap-2">
+        <div className="pt-4 flex gap-2 bg-white sticky bottom-0">
           <input 
             type="text" 
             value={chatMessage}
             onChange={e => setChatMessage(e.target.value)}
             onKeyPress={e => e.key === 'Enter' && handleSend()}
             placeholder={t.chat.placeholder}
-            className="flex-1 p-4 rounded-2xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all"
+            className="flex-1 p-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-sm"
           />
           <button 
             onClick={handleSend}
             disabled={loading || !chatMessage.trim()}
-            className="p-4 bg-green-600 text-white rounded-2xl shadow-lg shadow-green-200 disabled:opacity-50 transition-all active:scale-95"
+            className="w-14 h-14 bg-green-600 text-white rounded-2xl shadow-lg shadow-green-100 flex items-center justify-center disabled:opacity-50 transition-all active:scale-95"
           >
-            <ChevronRight className="w-6 h-6" />
+            <Send className="w-6 h-6" />
           </button>
         </div>
       </div>
