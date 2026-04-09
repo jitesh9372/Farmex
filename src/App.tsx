@@ -3,7 +3,7 @@ import {
   Cloud, 
   Sprout, 
   Droplets, 
-  Camera, 
+  Image, 
   TrendingUp, 
   MessageSquare, 
   Calendar, 
@@ -11,7 +11,6 @@ import {
   BookOpen, 
   Menu, 
   X, 
-  Mic, 
   MapPin,
   ChevronRight,
   CheckCircle2,
@@ -626,7 +625,6 @@ export default function App() {
             <input 
               type="file" 
               accept="image/*" 
-              capture="environment"
               onChange={handleImageUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
@@ -637,7 +635,7 @@ export default function App() {
                 <img src={diseaseImage} alt="Crop" className="w-full h-full object-cover rounded-3xl" />
               ) : (
                 <>
-                  <Camera className="w-12 h-12 text-gray-400" />
+                  <Image className="w-12 h-12 text-gray-400" />
                   <p className="text-sm font-medium text-gray-500">{t.disease.upload}</p>
                 </>
               )}
@@ -1112,7 +1110,7 @@ export default function App() {
   const tabs = [
     { id: 'dashboard', label: t.tabs.dashboard, icon: Cloud },
     { id: 'crop', label: t.tabs.crop, icon: Sprout },
-    { id: 'disease', label: t.tabs.disease, icon: Camera },
+    { id: 'disease', label: t.tabs.disease, icon: Image },
     { id: 'chat', label: t.tabs.chat, icon: MessageSquare },
     { id: 'calendar', label: t.tabs.calendar, icon: Calendar },
     { id: 'market', label: t.tabs.market, icon: TrendingUp },

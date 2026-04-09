@@ -23,8 +23,8 @@ if (!process.env.GEMINI_API_KEY) {
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 // Helper for fetch with retry and timeout
-async function fetchWithRetry(url: string, options: any = {}, retries = 3, backoff = 1000) {
-  const timeout = options.timeout || 15000;
+async function fetchWithRetry(url: string, options: any = {}, retries = 5, backoff = 2000) {
+  const timeout = options.timeout || 20000;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
@@ -32,8 +32,9 @@ async function fetchWithRetry(url: string, options: any = {}, retries = 3, backo
     ...options,
     signal: controller.signal,
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': 'application/json',
+      'Connection': 'keep-alive',
       ...options.headers
     }
   };
@@ -42,19 +43,27 @@ async function fetchWithRetry(url: string, options: any = {}, retries = 3, backo
     const response = await fetch(url, fetchOptions);
     clearTimeout(id);
     
-    if (!response.ok && retries > 0 && response.status >= 500) {
-      console.log(`Fetch failed with status ${response.status}, retrying in ${backoff}ms... (${retries} retries left)`);
-      await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    if (!response.ok && retries > 0 && (response.status >= 500 || response.status === 429)) {
+      const waitTime = response.status === 429 ? backoff * 2 : backoff;
+      console.log(`Fetch failed with status ${response.status}, retrying in ${waitTime}ms... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return fetchWithRetry(url, options, retries - 1, backoff * 1.5);
     }
     
     return response;
   } catch (err: any) {
     clearTimeout(id);
-    if (retries > 0 && (err.name === 'AbortError' || err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.message.includes('ECONNRESET'))) {
-      console.log(`Fetch failed (${err.message}), retrying in ${backoff}ms... (${retries} retries left)`);
+    const isNetworkError = err.name === 'AbortError' || 
+                          err.code === 'ECONNRESET' || 
+                          err.code === 'ETIMEDOUT' || 
+                          err.code === 'ECONNREFUSED' ||
+                          err.message.includes('ECONNRESET') ||
+                          err.message.includes('network');
+
+    if (retries > 0 && isNetworkError) {
+      console.log(`Fetch network error (${err.message || err.code}), retrying in ${backoff}ms... (${retries} retries left)`);
       await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      return fetchWithRetry(url, options, retries - 1, backoff * 1.5);
     }
     throw err;
   }
@@ -327,7 +336,7 @@ async function startServer() {
 
     try {
       console.log(`Fetching market data: ${url}`);
-      let response = await fetchWithRetry(url, { timeout: 15000 });
+      let response = await fetchWithRetry(url, { timeout: 25000 });
       
       if (!response.ok) {
         const errorText = await response.text();
