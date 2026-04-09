@@ -38,6 +38,7 @@ import { SOIL_TYPES, SEASONS, WATER_AVAILABILITY } from './constants';
 import type { WeatherData, CropRecommendation, FarmingTask, RiskAlert, User as UserType, MarketSearchResult, DiseaseResult } from './types';
 import { translations, type Language } from './translations';
 import Login from './components/Login';
+import Profile from './components/Profile';
 import { supabase } from './supabaseClient';
 
 export default function App() {
@@ -68,10 +69,15 @@ export default function App() {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        const savedProfile = localStorage.getItem('farmex_user_profile');
+        const profile = savedProfile ? JSON.parse(savedProfile) : null;
+
         setUser({
           id: session.user.id,
           email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+          name: profile?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          phone: profile?.phone || '',
+          photoURL: profile?.photoURL || ''
         });
       }
       setIsAuthChecking(false);
@@ -79,10 +85,15 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        const savedProfile = localStorage.getItem('farmex_user_profile');
+        const profile = savedProfile ? JSON.parse(savedProfile) : null;
+
         setUser({
           id: session.user.id,
           email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+          name: profile?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          phone: profile?.phone || '',
+          photoURL: profile?.photoURL || ''
         });
       } else {
         setUser(null);
@@ -91,6 +102,12 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('farmex_user_profile', JSON.stringify(user));
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -1078,6 +1095,7 @@ export default function App() {
     { id: 'chat', label: t.tabs.chat, icon: MessageSquare },
     { id: 'calendar', label: t.tabs.calendar, icon: Calendar },
     { id: 'market', label: t.tabs.market, icon: TrendingUp },
+    { id: 'profile', label: t.tabs.profile, icon: User },
   ];
 
   if (isAuthChecking) {
@@ -1163,15 +1181,25 @@ export default function App() {
 
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
-                      {user.name[0].toUpperCase()}
+                  <button 
+                    onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}
+                    className="flex items-center gap-3 text-left"
+                  >
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold overflow-hidden">
+                      {user.photoURL ? (
+                        <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        user.name[0].toUpperCase()
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-800">{user.name}</p>
-                      <button onClick={handleLogout} className="text-xs text-red-500 font-bold">Logout</button>
+                      <p className="text-[10px] text-green-600 font-bold">View Profile</p>
                     </div>
-                  </div>
+                  </button>
+                  <button onClick={handleLogout} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                    <LogOut className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -1205,15 +1233,22 @@ export default function App() {
         </nav>
         <div className="mt-auto p-4 bg-gray-50 rounded-2xl border border-gray-100">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
-                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center gap-3 text-left group"
+            >
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold overflow-hidden group-hover:ring-2 group-hover:ring-green-500 transition-all">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  user.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                )}
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-800">{user.name}</p>
+                <p className="text-sm font-bold text-gray-800 group-hover:text-green-600 transition-colors">{user.name}</p>
                 <p className="text-xs text-green-600 font-medium">{t.premiumFarmer}</p>
               </div>
-            </div>
+            </button>
             <button 
               onClick={handleLogout}
               className="p-2 text-gray-400 hover:text-red-500 transition-colors"
@@ -1285,6 +1320,13 @@ export default function App() {
               {activeTab === 'chat' && renderChat()}
               {activeTab === 'calendar' && renderCalendar()}
               {activeTab === 'market' && renderMarket()}
+              {activeTab === 'profile' && (
+                <Profile 
+                  user={user} 
+                  onUpdate={(updatedUser) => setUser(updatedUser)} 
+                  language={language} 
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

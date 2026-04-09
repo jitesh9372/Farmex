@@ -13,7 +13,8 @@ export const translations = {
       disease: "Disease",
       chat: "AI Chat",
       calendar: "Calendar",
-      market: "Market"
+      market: "Market",
+      profile: "Account"
     },
     dashboard: {
       currentWeather: "Current Weather",
@@ -104,7 +105,8 @@ export const translations = {
       disease: "रोग",
       chat: "एआई चैट",
       calendar: "कैलेंडर",
-      market: "बाजार"
+      market: "बाजार",
+      profile: "खाता"
     },
     dashboard: {
       currentWeather: "वर्तमान मौसम",
@@ -195,7 +197,8 @@ export const translations = {
       disease: "रोग",
       chat: "एआय चॅट",
       calendar: "कॅलेंडर",
-      market: "बाजार"
+      market: "बाजार",
+      profile: "खाते"
     },
     dashboard: {
       currentWeather: "सध्याचे हवामान",
