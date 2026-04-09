@@ -68,4 +68,7 @@ export interface User {
   name: string;
   phone?: string;
   photoURL?: string;
+  totalLand?: string;
+  activeCrops?: number;
+  twoFactorEnabled?: boolean;
 }

@@ -77,7 +77,10 @@ export default function App() {
           email: session.user.email || '',
           name: profile?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
           phone: profile?.phone || '',
-          photoURL: profile?.photoURL || ''
+          photoURL: profile?.photoURL || '',
+          totalLand: profile?.totalLand || '5.2',
+          activeCrops: profile?.activeCrops || 3,
+          twoFactorEnabled: profile?.twoFactorEnabled || false
         });
       }
       setIsAuthChecking(false);
@@ -93,7 +96,10 @@ export default function App() {
           email: session.user.email || '',
           name: profile?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
           phone: profile?.phone || '',
-          photoURL: profile?.photoURL || ''
+          photoURL: profile?.photoURL || '',
+          totalLand: profile?.totalLand || '5.2',
+          activeCrops: profile?.activeCrops || 3,
+          twoFactorEnabled: profile?.twoFactorEnabled || false
         });
       } else {
         setUser(null);
